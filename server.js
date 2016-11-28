@@ -20,29 +20,26 @@ mongoose.connect(mongouri);
 
  // The format follows as, alias to use for real path, also allows permission to such path.
 
-  app.set('views', path.join(__dirname, 'views'));
-  app.set('view engine', 'jade');
-  
-  
-  var port = process.env.PORT || 8080;
-  app.listen(port, function() {
-    console.log('Node.js listening on port ' + port);
-  });
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'jade');
+
+
+var port = process.env.PORT || 8080;
+app.listen(port, function() {
+  console.log('Node.js listening on port ' + port);
+});
   
   
 
- app.route('/')
-    .get(function(req, res) {
+app.get('/',function(req, res) {
       res.render('index', {
         err: "Error: You need to add a proper action, see examples below."
       });
     });
   
-app.route('/latest')
-    // Retrieve most recent searches
-    .get(getHistory);
+app.get('/latest',getHistory);
 
-  app.get('/:query', handlePost);
+app.get('/:query', handlePost);
 
   function handlePost(req, res) {
     // Get images and save query and date.
