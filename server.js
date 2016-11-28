@@ -22,10 +22,8 @@ mongoose.connect(mongouri);
 
   app.set('views', path.join(__dirname, 'views'));
   app.set('view engine', 'jade');
-
-  routes(app);
-  api(app, History);
-
+  
+  
   var port = process.env.PORT || 8080;
   app.listen(port, function() {
     console.log('Node.js listening on port ' + port);
