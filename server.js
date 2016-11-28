@@ -1,106 +1,79 @@
-var express = require('express');
-var path = require('path');
-var mongoose = require('mongoose');
-var Schema = mongoose.Schema;
-var Search = require('bing-search');
-require('dotenv').config({
-  silent: true
-});
+//api 3391c9a4d408fa29792ae6b90cae63b3
+//secret 10122bff46afef17
+
+var express = require('express')
 var app = express();
+var Flickr = require("flickrapi"),
+  flickrOptions = {
+    api_key: "3391c9a4d408fa29792ae6b90cae63b3",
+    secret: "10122bff46afef17"
+  };
+var url = require('url');
+var mongo = require('mongodb').MongoClient
+var dburl = 'mongodb://swyx:Qt72nWPyNByw@ds111798.mlab.com:11798/heroku_p414n7r6'
 
-var historySchema = new Schema({
-  term: String,
-  when: String
-});
+app.get("/api/latest/imagesearch/",function(req,res){
+  mongo.connect(dburl, function(err, db) {
+      if (err) throw err
+      var col = db.collection('fcc-urlshortener')
+      res.writeHead(200, {"Content-Type": "text/plain"});
+      col.find({},{_id:0,searchterm:1}).limit(10).toArray(function(err, docs) {
+          if (err) throw err
+          if (docs) {console.log(docs); res.end(JSON.stringify(docs));}
+          db.close()
+    })
+  })
+})
 
-var History = mongoose.model('History', historySchema);
-var mongouri = process.env.MONGOLAB_URI || "mongodb://" + process.env.IP + ":27017/img-sal";
-mongoose.connect(mongouri);
-//mongo.MongoClient.connect(process.env.MONGOLAB_URI || 'mongodb://localhost:27017/img-sal', function(err, db) {
-
- // The format follows as, alias to use for real path, also allows permission to such path.
-
-app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'jade');
-
-
-var port = process.env.PORT || 8080;
-app.listen(port, function() {
-  console.log('Node.js listening on port ' + port);
-});
+app.get("/", function(request, response) {  
+  Flickr.tokenOnly(flickrOptions, function(error, flickr) {
+    // we can now use "flickr" as our API object,
+    // but we can only call public methods and access public data
+    flickr.photos.search({text: "panda",
+      page: 1,
+      per_page: 10
+    }, function(err, result) {
+      if(err) { throw new Error(err); }
+      // do something with result
+      console.log(result['photos']['photo'].map(potato));
+    })
+  });
   
-  
+  response.end("Welcome to the homepage!");})
+app.get("/api/imagesearch/:url",function(req,res){
+  Flickr.tokenOnly(flickrOptions, function(error, flickr) {
+    // we can now use "flickr" as our API object,
+    // but we can only call public methods and access public data
+    
+    
+    
+    console.log(url.parse(req.params.url, true).path)
+    console.log();
+    flickr.photos.search({text: url.parse(req.params.url, true).path,
+      page: Number(url.parse(req.url, true).query.offset),
+      per_page: 10
+    }, function(err, result) {
+      if(err) { throw new Error(err); }
+      
+        mongo.connect(dburl, function(err, db) {
+            if (err) throw err
+            var col = db.collection('fcc-urlshortener')
+            col.insert({searchterm:url.parse(req.params.url, true).path})
+        })
+      
+      //console.log(result['photos']['photo']);
+      res.writeHead(200, {"Content-Type": "text/plain"});
+      res.end(JSON.stringify(result['photos']['photo'].map(potato)));
+    })
+  });
+})
+// app.get("/new/:url", function(req, res) {res.end("Hello, " + req.params.url + ".");})
 
-app.get('/',function(req, res) {
-      res.render('index', {
-        err: "Error: You need to add a proper action, see examples below."
-      });
-    });
-  
-app.get('/latest',getHistory);
+var port = process.env.PORT || 8080;  
+app.listen(port, function() {console.log('Node.js listening/ on port ' + port);})
 
-app.get('/:query', handlePost);
 
-  function handlePost(req, res) {
-    // Get images and save query and date.
-    var query = req.params.query;
-    var size = req.query.offset || 10;
-    var search = new Search(process.env.API_KEY);
-    var history = {
-      "term": query,
-      "when": new Date().toLocaleString()
-    };
-    // Save query and time to the database
-    if (query !== 'favicon.ico') {
-      save(history);
-    }
-
-    // Query the image and populate results
-    search.images(query, {
-        top: size
-      },
-      function(err, results) {
-        if (err) throw err;
-        res.send(results.map(makeList));
-      }
-    );
-  }
-
-  function makeList(img) {
-    // Construct object from the json result
-    return {
-      "url": img.url,
-      "snippet": img.title,
-      "thumbnail": img.thumbnail.url,
-      "context": img.sourceUrl
-    };
-  }
-
-  function save(obj) {
-    // Save object into db.
-    var history = new History(obj);
-    history.save(function(err, history) {
-      if (err) throw err;
-      console.log('Saved ' + history);
-    });
-  }
-
-  function getHistory(req, res) {
-    // Check to see if the site is already there
-    History.find({}, null, {
-      "limit": 10,
-      "sort": {
-        "when": -1
-      }
-    }, function(err, history) {
-      if (err) return console.error(err);
-      console.log(history);
-      res.send(history.map(function(arg) {
-        // Displays only the field we need to show.
-        return {
-          term: arg.term,
-          when: arg.when
-        };
-      }));
-    });
-  }
+function potato(pot){
+  console.log(pot);
+  return {url:'https://www.flickr.com/photos/' + pot.owner + '/' + pot.id + '/',title:pot.title}
+}
